@@ -1,5 +1,3 @@
-import asyncio
-
 import requests
 from bs4 import BeautifulSoup # scraper library
 
@@ -14,8 +12,8 @@ date_range = pd.date_range(pd.datetime(2018, 1, 1), periods=59).tolist()
 stat_types = {
         'pts_per_game': 'points-per-game',
         'pos_per_game': 'possessions-per-game',
-        # '2pt_attempted': 
-        # '2pt_made': 
+        'field_goals_attempted': 'field-goals-attempted-per-game',
+        'field_goals_made': 'field-goals-made-per-game',
         '3pt_attempted': 'three-pointers-attempted-per-game',
         '3pt_made': 'three-pointers-made-per-game',
         'ft_per_100_pos': 'ftm-per-100-possessions',
@@ -32,7 +30,7 @@ stat_types = {
         'opp_ast_per_game': 'opponent-assists-per-game',
         }
 
-def scrape_stats(page_url):
+def scrape_stats(page_url, output_name):
     stats_df = None
     stats = {}
 
@@ -57,7 +55,7 @@ def scrape_stats(page_url):
 
             stats[team_name][date] = stat_val
 
-        print(f"\tParsing date: {date} [{date_i}/{len(date_range)}]", end='\r')
+        print(f"{output_name}: Fetching date: {date} [{date_i}/{len(date_range)}]", end='\r')
 
     print()
 
@@ -69,20 +67,18 @@ def scrape_stats(page_url):
     return stats_df
 
 # def main():
-#     scrape_stats('https://www.teamrankings.com/ncaa-basketball/stat/points-per-game')
+#     scrape_stats('https://www.teamrankings.com/ncaa-basketball/stat/points-per-game', 'pts_per_game')
 
-async def main():
+def main():
     for (output_name, stat_url) in stat_types.items():
         page_url = base_page_url + stat_url
         
-        print(f"Parsing '{output_name}' from `{page_url}`")
+        print(f"{output_name}: Parsing from `{page_url}`...")
 
-        stat = scrape_stats(page_url)
+        stat = scrape_stats(page_url, output_name)
         stat.to_csv(output_name + '.csv')
-
+        print(f"{ouput_name}: Done.")
         print()
 
 if __name__ == '__main__':
-    # Run main asynchronously
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    main()
