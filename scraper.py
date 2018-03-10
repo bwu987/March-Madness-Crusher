@@ -1,4 +1,5 @@
-import re # regex
+import asyncio
+
 import requests
 from bs4 import BeautifulSoup # scraper library
 
@@ -9,19 +10,35 @@ from collections import OrderedDict
 base_page_url = 'https://www.teamrankings.com/ncaa-basketball/stat/'
 date_range = pd.date_range(pd.datetime(2018, 1, 1), periods=59).tolist()
 
-stat_types = [
-        'points-per-game'
-        ]
-stats_urls = [ base_page_url + stat for stat in stat_types ]
+# dictionary: output_name: url
+stat_types = {
+        'pts_per_game': 'points-per-game',
+        'pos_per_game': 'possessions-per-game',
+        # '2pt_attempted': 
+        # '2pt_made': 
+        '3pt_attempted': 'three-pointers-attempted-per-game',
+        '3pt_made': 'three-pointers-made-per-game',
+        'ft_per_100_pos': 'ftm-per-100-possessions',
+        'off_rebounds': 'offensive-rebounds-per-game',
+        'ast_per_game': 'assists-per-game',
+        'fouls_per_game': 'personal-fouls-per-game',
+        'opp_pts_per_game': 'opponent-points-per-game',
+        'opp_pts_from_3pt': 'opponent-points-from-3-pointers',
+        'opp_pts_from_2pt': 'opponent-points-from-2-pointers',
+        'def_rebounds': 'defensive-rebounds-per-game',
+        'blocks_per_game': 'blocks-per-game',
+        'steals_per_game': 'steals-per-game',
+        'opp_to_per_game': 'opponent-turnovers-per-game',
+        'opp_ast_per_game': 'opponent-assists-per-game',
+        }
 
 def scrape_stats(page_url):
     stats_df = None
     stats = {}
 
-    for date in date_range:
-        url = page_url + '?date=' + str(date.date())
-
-        print(url)
+    for date_i, date in enumerate(date_range):
+        date = str(date.date())
+        url = page_url + '?date=' + date
 
         page = requests.get(url) # load page
         soup = BeautifulSoup(page.text, 'html5lib') # parse
@@ -38,52 +55,34 @@ def scrape_stats(page_url):
             if team_name not in stats:
                 stats[team_name] = {}
 
-            stats[team_name][str(date.date())] = stat_val
+            stats[team_name][date] = stat_val
 
-        stats_df_data = [ [ team_name, *v.values() ] for team_name,v in stats.items() ]
-        stats_df_columns = ['Team Name'] + list(stats[list(stats.keys())[0]].keys())
-        stats_df = pd.DataFrame(data = stats_df_data, columns = stats_df_columns)
+        print(f"\tParsing date: {date} [{date_i}/{len(date_range)}]", end='\r')
 
-        print(stats_df)
+    print()
+
+    # Convert to pandas dataframe
+    stats_df_data = [ [ team_name, *v.values() ] for team_name,v in stats.items() ]
+    stats_df_columns = ['Team Name'] + list(stats[list(stats.keys())[0]].keys())
+    stats_df = pd.DataFrame(data = stats_df_data, columns = stats_df_columns)
 
     return stats_df
 
-scrape_stats('https://www.teamrankings.com/ncaa-basketball/stat/points-per-game')
+# def main():
+#     scrape_stats('https://www.teamrankings.com/ncaa-basketball/stat/points-per-game')
 
+async def main():
+    for (output_name, stat_url) in stat_types.items():
+        page_url = base_page_url + stat_url
+        
+        print(f"Parsing '{output_name}' from `{page_url}`")
 
-# Scrape some data!
-# Load game stats and season stats tables
-# game_stats_el, season_stats_el = soup.find_all('table', attrs={'class': 'tablehead'})
+        stat = scrape_stats(page_url)
+        stat.to_csv(output_name + '.csv')
 
-# def scrape_stats(table_el):
-#     stats = []
-# 
-#     # Get column names
-#     colhead_el = table_el.find('tr', attrs={'class': 'colhead'})
-#     col_names = [ col.text for col in colhead_el.children ]
-# 
-#     # Get player and total stats
-#     players_els = table_el.find_all('tr', attrs={'class': re.compile('(^player-)|(^total$)')})
-#     for player_el in players_els: # each player is represented by one table row
-#         player = OrderedDict() # empty initially
-#         for col_idx, col_el in enumerate(player_el.children):
-#             col_name = col_names[col_idx]
-#             player[col_name] = col_el.text # fill in stat
-#         stats.append(player) # add to list
-# 
-#     return stats
+        print()
 
-# # Lo and behold
-# game_stats = scrape_stats(game_stats_el)
-# season_stats = scrape_stats(season_stats_el)
-# 
-# # Put these into some pandas dataframes
-# game_stats = pd.DataFrame.from_dict(game_stats)
-# season_stats = pd.DataFrame.from_dict(season_stats)
-# 
-# print(game_stats)
-# print(season_stats)
-# 
-# # Export to csv
-# game_stats.to_csv('game_stats.csv')
-# season_stats.to_csv('season_stats.csv')
+if __name__ == '__main__':
+    # Run main asynchronously
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
