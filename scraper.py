@@ -1,3 +1,4 @@
+import sys, os
 import requests
 from bs4 import BeautifulSoup # scraper library
 
@@ -19,6 +20,7 @@ stat_types = {
         'ft_per_100_pos': 'ftm-per-100-possessions',
         'off_rebounds': 'offensive-rebounds-per-game',
         'ast_per_game': 'assists-per-game',
+        'to_per_game': 'turnovers-per-game',
         'fouls_per_game': 'personal-fouls-per-game',
         'opp_pts_per_game': 'opponent-points-per-game',
         'opp_pts_from_3pt': 'opponent-points-from-3-pointers',
@@ -55,7 +57,7 @@ def scrape_stats(page_url, output_name):
 
             stats[team_name][date] = stat_val
 
-        print(f"{output_name}: Fetching date: {date} [{date_i}/{len(date_range)}]", end='\r')
+        print(f"{output_name}: Fetching date: {date} [{date_i+1}/{len(date_range)}]", end='\r')
 
     print()
 
@@ -71,13 +73,18 @@ def scrape_stats(page_url, output_name):
 
 def main():
     for (output_name, stat_url) in stat_types.items():
+        # Check if file exists so we don't have to reparse the data
+        if os.path.isfile(output_name + '.csv'):
+            print(f"{output_name}: File exists. Skipping...")
+            continue
+
         page_url = base_page_url + stat_url
         
         print(f"{output_name}: Parsing from `{page_url}`...")
 
         stat = scrape_stats(page_url, output_name)
         stat.to_csv(output_name + '.csv')
-        print(f"{ouput_name}: Done.")
+        print(f"{output_name}: Done.")
         print()
 
 if __name__ == '__main__':
